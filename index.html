@@ -76,7 +76,6 @@
     let colors = [];
     let colorsRendered = '';
     let currentOffset = -1;
-    let resLength = 10;
     let lastUpdated = '';
     let lastRequest = '';
 
@@ -148,7 +147,6 @@
           });
           document.getElementById('row').innerHTML = colorsRendered;
           currentOffset = resultOffset;
-          resLength = r.length;
           lastUpdated = timeFormatter(new Date());
           document.getElementById(
             'lastUpdated'
@@ -168,12 +166,9 @@
 
     //scroll event listener
     const getCurrentOffset = () => {
-      if (
-        window.innerHeight + window.scrollY >= document.body.offsetHeight &&
-        resLength === 10
-      ) {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
         //at least 250 miliseconds between requests
-        if (Date.now() > lastRequest + 250) getter(currentOffset + 1);
+        if (Date.now() > lastRequest + 250) getter(currentOffset + 10);
       }
     };
     window.addEventListener('scroll', getCurrentOffset, false);
