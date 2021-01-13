@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color picker</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        -webkit-box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+        font-family: 'Montserrat', sans-serif;
+      }
+
+      .colorBox {
+        width: 50%;
+        margin-bottom: 15px;
+        padding: 15px;
+      }
+
+      @media (max-width: 600px) {
+        .colorBox {
+          width: 100%;
+          margin-bottom: 15px;
+        }
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body style="background-color: #308ad1; color: white; min-height: 110vh">
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        margin: auto;
+        max-width: 768px;
+        padding-left: 10px;
+        padding-right: 10px;
+      "
+    >
+      <p
+        style="
+          align-self: flex-end;
+          margin-top: 30px;
+          margin-right: 10px;
+          font-weight: 600;
+        "
+        id="lastUpdated"
+      ></p>
+      <h1 style="font-weight: normal; margin-left: 10px; margin-bottom: 30px">
+        ColourLovers. <span style="font-weight: 600">Live.</span>
+      </h1>
+      <div
+        style="display: flex; flex-direction: row; flex-wrap: wrap"
+        id="row"
+      ></div>
+      <div
+        style="
+          width: 100%;
+          text-align: center;
+          font-size: 1.2em;
+          font-weight: 600;
+          padding-bottom: '300px';
+        "
+        id="loading"
+      ></div>
+    </div>
+  </body>
+  <script>
+    let colors = [];
+    let colorsRendered = '';
+    let currentOffset = -1;
+    let resLength = 10;
+    let lastUpdated = '';
+    let lastRequest = '';
+
+    //receives a Date object and produces HH:MM AM/PM string
+    const timeFormatter = (date) => {
+      var hours = date.getHours();
+      var minutes = date.getMinutes();
+      var ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      minutes = minutes < 10 ? '0' + minutes : minutes;
+      var strTime = hours + ':' + minutes + ' ' + ampm;
+      return strTime;
+    };
+
+    //fetches the color palettes from the local server, which acts as a proxy for CORS requests
+    const getter = (resultOffset) => {
+      lastRequest = Date.now();
+      document.getElementById('loading').innerHTML = 'Loading...';
+
+      let data = { resultOffset };
+
+      fetch('http://localhost:3000/getcolors', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+        .then((r) => r.json())
+        .then((r) => {
+          let newColorArray = [...colors];
+          if (resultOffset > currentOffset) newColorArray.push(...r);
+          colors = newColorArray;
+          colors.forEach((colorItem) => {
+            colorsRendered += `<div
+                id="colorContainer"
+                style="display: flex; flex-direction: row"
+                class="colorBox"
+              >
+                <div style="flex: 1.5; flex-direction: column">
+                  <h3 style="margin-bottom: 6px">${colorItem.title}</h3>
+                  <p style="font-size: 0.8em; margin-bottom: 6px">
+                    by ${colorItem.userName} at 
+                    ${timeFormatter(
+                      new Date(Date.parse(colorItem.dateCreated))
+                    )}
+                  </p>
+                  <p style="font-size: 0.8em; background-color: rgba(0, 0, 0, 0.3); max-width: 120px; padding: 3px; text-align: center">
+                    ${colorItem.numViews} views ${colorItem.numVotes} votes
+                  </p>
+                </div>
+                <div style="flex: 1">
+                  <div style="display: flex; flex-direction: row; height: 100%">
+                    ${(() => {
+                      let palette = '';
+                      colorItem.colors.forEach((color) => {
+                        palette += `<div
+                          style="flex: 1;
+                              background-color: ${'#' + color}"
+                        ></div>`;
+                      });
+                      return palette;
+                    })()}
+                  </div>
+                </div>
+              </div>`;
+          });
+          document.getElementById('row').innerHTML = colorsRendered;
+          currentOffset = resultOffset;
+          resLength = r.length;
+          lastUpdated = timeFormatter(new Date());
+          document.getElementById(
+            'lastUpdated'
+          ).innerHTML = `Last updated: ${lastUpdated}`;
+          document.getElementById('loading').innerHTML = '';
+        })
+        .catch((err) => {
+          document.getElementById(
+            'lastUpdated'
+          ).innerHTML = `Error loading assets`;
+          document.getElementById('loading').innerHTML = '';
+        });
+    };
+
+    //initial 10 items
+    getter(0);
+
+    //scroll event listener
+    const getCurrentOffset = () => {
+      if (
+        window.innerHeight + window.scrollY >= document.body.offsetHeight &&
+        resLength === 10
+      ) {
+        //at least 250 miliseconds between requests
+        if (Date.now() > lastRequest + 250) getter(currentOffset + 1);
+      }
+    };
+    window.addEventListener('scroll', getCurrentOffset, false);
+  </script>
+</html>
